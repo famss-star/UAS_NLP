@@ -106,7 +106,7 @@ def load_data():
     try:
         df = pd.read_csv('processed_data.csv')
         return df
-    except FileNotFoundError:
+    except (FileNotFoundError, pd.errors.EmptyDataError):
         return None
 
 def predict_topic(text, preprocessor, vectorizer, model, n_words=10):
@@ -345,7 +345,15 @@ def analysis_page(n_topics):
     df = load_data()
     
     if df is None:
-        st.warning("⚠️ Processed data tidak ditemukan. Upload file 'processed_data.csv'")
+        st.warning("⚠️ Processed data tidak tersedia. Silakan train model terlebih dahulu di Colab dan upload `processed_data.csv`.")
+        st.info("💡 File yang dibutuhkan: `processed_data.csv` dengan kolom minimal: `cleaned_text`, `dominant_topic`")
+        return
+    
+    # Check required columns
+    required_cols = ['cleaned_text']
+    if not all(col in df.columns for col in required_cols):
+        st.error(f"❌ File `processed_data.csv` harus memiliki kolom: {', '.join(required_cols)}")
+        st.info(f"📋 Kolom yang tersedia: {', '.join(df.columns.tolist())}")
         return
     
     # Dataset overview
@@ -391,8 +399,13 @@ def analysis_page(n_topics):
     st.subheader("📄 Sample Documents")
     n_samples = st.slider("Number of samples to display:", 5, 20, 10)
     
-    display_df = df[['text', 'cleaned_text']].head(n_samples)
-    st.dataframe(display_df, use_container_width=True)
+    # Show available columns
+    display_cols = [col for col in ['text', 'cleaned_text'] if col in df.columns]
+    if display_cols:
+        display_df = df[display_cols].head(n_samples)
+        st.dataframe(display_df, use_container_width=True)
+    else:
+        st.warning("Kolom 'text' atau 'cleaned_text' tidak tersedia dalam dataset.")
     
     # Download processed data
     st.subheader("💾 Download Data")
