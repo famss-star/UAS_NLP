@@ -3,3 +3,5 @@
 /README.md
 /topic_modeling_colab.ipynb
 /Untitled0.ipynb
+*.png
+/logs/*.log
