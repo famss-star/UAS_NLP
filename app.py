@@ -9,6 +9,21 @@ from wordcloud import WordCloud
 import re
 from io import BytesIO
 
+# NLP libraries
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+
+# Download NLTK data (only once)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords', quiet=True)
+    nltk.download('punkt', quiet=True)
+    nltk.download('wordnet', quiet=True)
+    nltk.download('punkt_tab', quiet=True)
+
 # Page configuration
 st.set_page_config(
     page_title="Topic Modeling App",
@@ -40,6 +55,32 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+# TextPreprocessor class (must match the one used in training)
+class TextPreprocessor:
+    def __init__(self, language='english'):
+        self.stop_words = set(stopwords.words(language))
+        self.lemmatizer = WordNetLemmatizer()
+    
+    def clean_text(self, text):
+        """Membersihkan teks dari karakter khusus"""
+        text = str(text).lower()
+        text = re.sub(r'[^a-zA-Z\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    
+    def tokenize_and_lemmatize(self, text):
+        """Tokenisasi dan lemmatisasi"""
+        tokens = word_tokenize(text)
+        tokens = [self.lemmatizer.lemmatize(word) for word in tokens 
+                 if word not in self.stop_words and len(word) > 2]
+        return tokens
+    
+    def preprocess(self, text):
+        """Pipeline preprocessing lengkap"""
+        cleaned = self.clean_text(text)
+        tokens = self.tokenize_and_lemmatize(cleaned)
+        return ' '.join(tokens)
 
 # Load models
 @st.cache_resource
