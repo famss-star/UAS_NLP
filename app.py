@@ -55,28 +55,38 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# TextPreprocessor class (must match the one used in training)
+# Stopwords kustom domain (sesuaikan kebutuhan)
+CUSTOM_STOPWORDS = {"itb", "bandung", "itbacid", "dan", "yang"}
+
+# TextPreprocessor class diselaraskan dengan pelatihan di notebook
 class TextPreprocessor:
-    def __init__(self, language='english'):
-        self.stop_words = set(stopwords.words(language))
-        self.lemmatizer = WordNetLemmatizer()
+    def __init__(self, language='indonesian', custom_stopwords=None, use_lemmatizer=False):
+        base = set(stopwords.words(language))
+        custom = set(custom_stopwords or set())
+        self.stop_words = base | custom
+        # WordNet lemmatizer cocok untuk bahasa Inggris; default dimatikan
+        self.lemmatizer = WordNetLemmatizer() if use_lemmatizer else None
     
-    def clean_text(self, text):
-        """Membersihkan teks dari karakter khusus"""
+    def clean_text(self, text: str) -> str:
+        """Normalisasi teks: lower, hapus URL, normalisasi domain, buang 'nan', dan non-alfa"""
         text = str(text).lower()
-        text = re.sub(r'[^a-zA-Z\s]', '', text)
+        text = re.sub(r'https?://\S+|www\.\S+', ' ', text)
+        text = re.sub(r'\bitb\.ac\.id\b', ' itb ', text)
+        text = re.sub(r'\bnan\b', ' ', text)
+        text = re.sub(r'[^a-z0-9\s]', ' ', text)
         text = re.sub(r'\s+', ' ', text).strip()
         return text
     
-    def tokenize_and_lemmatize(self, text):
-        """Tokenisasi dan lemmatisasi"""
+    def tokenize_and_lemmatize(self, text: str):
+        """Tokenisasi + lemmatisasi opsional (fallback jika lemmatizer tidak tersedia)"""
         tokens = word_tokenize(text)
-        tokens = [self.lemmatizer.lemmatize(word) for word in tokens 
-                 if word not in self.stop_words and len(word) > 2]
+        if hasattr(self, 'lemmatizer') and self.lemmatizer is not None:
+            tokens = [self.lemmatizer.lemmatize(w) for w in tokens if w not in self.stop_words and len(w) > 2]
+        else:
+            tokens = [w for w in tokens if w not in self.stop_words and len(w) > 2]
         return tokens
     
-    def preprocess(self, text):
-        """Pipeline preprocessing lengkap"""
+    def preprocess(self, text: str) -> str:
         cleaned = self.clean_text(text)
         tokens = self.tokenize_and_lemmatize(cleaned)
         return ' '.join(tokens)
