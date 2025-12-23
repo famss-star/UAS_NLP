@@ -26,8 +26,7 @@ except LookupError:
 
 # Page configuration
 st.set_page_config(
-    page_title="Topic Modeling App",
-    page_icon="📚",
+    page_title="Aplikasi Pemodelan Topik",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -96,8 +95,8 @@ def load_models():
         
         return lda_model, vectorizer, preprocessor, topics
     except FileNotFoundError:
-        st.error("⚠️ Model files tidak ditemukan! Pastikan file model sudah ada di folder yang sama.")
-        st.info("📝 File yang diperlukan: lda_model.pkl, vectorizer.pkl, preprocessor.pkl, topics.pkl")
+        st.error("Model tidak ditemukan. Pastikan file model ada di folder yang sama.")
+        st.info("File diperlukan: lda_model.pkl, vectorizer.pkl, preprocessor.pkl, topics.pkl")
         return None, None, None, None
 
 @st.cache_data
@@ -113,15 +112,19 @@ def predict_topic(text, preprocessor, vectorizer, model, n_words=10):
     """Prediksi topik untuk teks baru"""
     # Preprocess
     cleaned = preprocessor.preprocess(text)
+    tokens = cleaned.split()
+    total_tokens = len(tokens)
     
     # Transform
     vectorized = vectorizer.transform([cleaned])
+    vocab_hits = int(vectorized.nnz)
+    vocab_coverage = float(vocab_hits / total_tokens) if total_tokens > 0 else 0.0
     
     # Predict
     topic_dist = model.transform(vectorized)[0]
     dominant_topic = topic_dist.argmax()
     
-    # Get top words
+    # Get top words (dari model untuk topik dominan)
     feature_names = vectorizer.get_feature_names_out()
     topic = model.components_[dominant_topic]
     top_indices = topic.argsort()[-n_words:][::-1]
@@ -132,7 +135,10 @@ def predict_topic(text, preprocessor, vectorizer, model, n_words=10):
         'topic_distribution': topic_dist,
         'top_words': top_words,
         'confidence': float(topic_dist[dominant_topic]),
-        'cleaned_text': cleaned
+        'cleaned_text': cleaned,
+        'vocab_hits': vocab_hits,
+        'total_tokens': total_tokens,
+        'vocab_coverage': vocab_coverage
     }
 
 def create_wordcloud(words_dict):
@@ -153,12 +159,12 @@ def create_wordcloud(words_dict):
 def plot_topic_distribution(topic_dist, n_topics):
     """Plot distribusi topik"""
     fig, ax = plt.subplots(figsize=(10, 4))
-    topics = [f'Topic {i+1}' for i in range(n_topics)]
+    topics = [f'Topik {i+1}' for i in range(n_topics)]
     colors = plt.cm.viridis(np.linspace(0, 1, n_topics))
     
     bars = ax.barh(topics, topic_dist, color=colors)
-    ax.set_xlabel('Probability', fontsize=12)
-    ax.set_title('Topic Distribution', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Probabilitas', fontsize=12)
+    ax.set_title('Distribusi Topik', fontsize=14, fontweight='bold')
     ax.set_xlim(0, 1)
     
     # Add value labels
@@ -174,7 +180,7 @@ def plot_topic_distribution(topic_dist, n_topics):
 # Main App
 def main():
     # Header
-    st.markdown('<h1 class="main-header">📚 Topic Modeling Application</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Aplikasi Pemodelan Topik</h1>', unsafe_allow_html=True)
     st.markdown("---")
     
     # Load models
@@ -187,38 +193,37 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.image("https://img.icons8.com/fluency/96/000000/topic.png", width=100)
-        st.title("📊 Navigation")
+        st.title("Navigasi")
         
         page = st.radio(
             "Pilih Halaman:",
-            ["🏠 Home", "🔍 Predict Topic", "📈 Dataset Analysis", "ℹ️ About"]
+            ["Beranda", "Prediksi Topik", "Analisis Dataset", "Tentang"]
         )
         
         st.markdown("---")
-        st.markdown("### 📌 Model Info")
-        st.info(f"**Topics:** {n_topics}\n\n**Algorithm:** LDA")
+        st.markdown("### Informasi Model")
+        st.info(f"**Topik:** {n_topics}\n\n**Algoritme:** LDA")
         
         st.markdown("---")
-        st.markdown("### 👨‍💻 Developer")
-        st.text("NLP Topic Modeling\nStreamlit App")
+        st.markdown("### Pengembang")
+        st.text("NLP Topic Modeling\nAplikasi Streamlit")
     
     # Pages
-    if page == "🏠 Home":
+    if page == "Beranda":
         home_page(topics, n_topics)
     
-    elif page == "🔍 Predict Topic":
+    elif page == "Prediksi Topik":
         predict_page(preprocessor, vectorizer, lda_model, topics, n_topics)
     
-    elif page == "📈 Dataset Analysis":
+    elif page == "Analisis Dataset":
         analysis_page(n_topics)
     
-    elif page == "ℹ️ About":
+    elif page == "Tentang":
         about_page()
 
 def home_page(topics, n_topics):
-    """Halaman utama - tampilkan topics"""
-    st.header("🎯 Discovered Topics")
+    """Halaman utama - tampilkan topik"""
+    st.header("Topik yang Ditemukan")
     st.write("Berikut adalah topik-topik yang ditemukan dari analisis:")
     
     # Display topics in columns
@@ -228,8 +233,8 @@ def home_page(topics, n_topics):
         with cols[idx % len(cols)]:
             st.markdown(f"""
                 <div class="topic-card">
-                    <h3 style="color: #1f77b4;">📍 {topic_name}</h3>
-                    <p style="font-size: 1.1rem;"><strong>Top Keywords:</strong></p>
+                    <h3 style="color: #1f77b4;">{topic_name}</h3>
+                    <p style="font-size: 1.1rem;"><strong>Kata Kunci Utama:</strong></p>
                     <p>{', '.join(words[:8])}</p>
                 </div>
             """, unsafe_allow_html=True)
@@ -237,14 +242,14 @@ def home_page(topics, n_topics):
     st.markdown("---")
     
     # Quick stats
-    st.subheader("📊 Quick Statistics")
+    st.subheader("Statistik Singkat")
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("""
             <div class="metric-card">
                 <h2 style="color: #1f77b4;">{}</h2>
-                <p>Total Topics</p>
+                <p>Total Topik</p>
             </div>
         """.format(n_topics), unsafe_allow_html=True)
     
@@ -252,7 +257,7 @@ def home_page(topics, n_topics):
         st.markdown("""
             <div class="metric-card">
                 <h2 style="color: #2ca02c;">10</h2>
-                <p>Words per Topic</p>
+                <p>Kata per Topik</p>
             </div>
         """, unsafe_allow_html=True)
     
@@ -260,50 +265,53 @@ def home_page(topics, n_topics):
         st.markdown("""
             <div class="metric-card">
                 <h2 style="color: #ff7f0e;">LDA</h2>
-                <p>Algorithm</p>
+                <p>Algoritme</p>
             </div>
         """, unsafe_allow_html=True)
 
 def predict_page(preprocessor, vectorizer, lda_model, topics, n_topics):
     """Halaman prediksi topik"""
-    st.header("🔍 Topic Prediction")
+    st.header("Prediksi Topik")
     st.write("Masukkan teks untuk memprediksi topiknya:")
     
-    # Input methods
-    input_method = st.radio("Pilih metode input:", ["✍️ Text Input", "📄 File Upload"])
+    # Metode input
+    input_method = st.radio("Pilih metode input:", ["Input Teks", "Unggah Berkas"])
     
-    if input_method == "✍️ Text Input":
+    if input_method == "Input Teks":
         user_text = st.text_area(
             "Masukkan teks di sini:",
             height=200,
-            placeholder="Contoh: Machine learning is transforming the way we analyze data..."
+            placeholder="Contoh: Pembelajaran mesin mengubah cara kita menganalisis data..."
         )
         
-        if st.button("🚀 Predict Topic", type="primary"):
+        if st.button("Prediksi Topik", type="primary"):
             if user_text.strip():
-                with st.spinner("Analyzing text..."):
+                with st.spinner("Menganalisis teks..."):
                     result = predict_topic(user_text, preprocessor, vectorizer, lda_model)
                     display_prediction_result(result, topics, n_topics)
             else:
-                st.warning("⚠️ Please enter some text first!")
+                st.warning("Silakan masukkan teks terlebih dahulu!")
     
-    else:  # File Upload
-        uploaded_file = st.file_uploader("Upload text file (.txt)", type=['txt'])
+    else:  # Unggah Berkas
+        uploaded_file = st.file_uploader("Unggah berkas teks (.txt)", type=['txt'])
         
         if uploaded_file is not None:
             user_text = uploaded_file.read().decode('utf-8')
-            st.text_area("Preview:", user_text, height=150)
+            st.text_area("Pratinjau:", user_text, height=150)
             
-            if st.button("🚀 Predict Topic", type="primary"):
-                with st.spinner("Analyzing text..."):
-                    result = predict_topic(user_text, preprocessor, vectorizer, lda_model)
-                    display_prediction_result(result, topics, n_topics)
+            if st.button("Prediksi Topik", type="primary"):
+                if user_text.strip():
+                    with st.spinner("Menganalisis teks..."):
+                        result = predict_topic(user_text, preprocessor, vectorizer, lda_model)
+                        display_prediction_result(result, topics, n_topics)
+                else:
+                    st.warning("Berkas kosong, silakan unggah berkas dengan konten teks.")
 
 def display_prediction_result(result, topics, n_topics):
     """Tampilkan hasil prediksi"""
-    st.success("✅ Analysis Complete!")
+    st.success("Analisis selesai!")
     
-    # Dominant topic
+    # Topik dominan
     dominant_topic = result['dominant_topic']
     confidence = result['confidence']
     
@@ -312,41 +320,48 @@ def display_prediction_result(result, topics, n_topics):
     with col1:
         st.markdown(f"""
             <div class="topic-card">
-                <h2 style="color: #1f77b4;">Predicted Topic</h2>
-                <h1 style="color: #2ca02c; font-size: 3rem;">Topic {dominant_topic + 1}</h1>
-                <p style="font-size: 1.2rem;">Confidence: <strong>{confidence:.1%}</strong></p>
+                <h2 style="color: #1f77b4;">Topik Terprediksi</h2>
+                <h1 style="color: #2ca02c; font-size: 3rem;">Topik {dominant_topic + 1}</h1>
+                <p style="font-size: 1.2rem;">Kepercayaan: <strong>{confidence:.1%}</strong></p>
             </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("**Top Keywords:**")
+        st.markdown("**Kata Kunci Utama:**")
         st.write(", ".join(result['top_words']))
     
     with col2:
-        # Topic distribution plot
+        # Plot distribusi topik
         fig = plot_topic_distribution(result['topic_distribution'], n_topics)
         st.pyplot(fig)
     
-    # Processed text
-    with st.expander("📝 Show Preprocessed Text"):
+    # Teks yang telah diproses
+    with st.expander("Tampilkan Teks yang Diproses"):
         st.code(result['cleaned_text'])
     
-    # All topics probabilities
-    with st.expander("📊 Show All Topic Probabilities"):
+    # Kecocokan kosakata terhadap model
+    with st.expander("Kecocokan Kosakata terhadap Model"):
+        st.write(f"Token cocok: {result['vocab_hits']} dari {result['total_tokens']} token")
+        st.write(f"Cakupan kosakata: {result['vocab_coverage']:.0%}")
+        if result['vocab_hits'] == 0:
+            st.warning("Tidak ada kata dari teks yang dikenali oleh model. Pastikan bahasa/templat preprocessing sesuai dengan data pelatihan.")
+
+    # Probabilitas semua topik
+    with st.expander("Tampilkan Probabilitas Semua Topik"):
         prob_df = pd.DataFrame({
-            'Topic': [f'Topic {i+1}' for i in range(n_topics)],
-            'Probability': [f"{p:.2%}" for p in result['topic_distribution']]
+            'Topik': [f'Topik {i+1}' for i in range(n_topics)],
+            'Probabilitas': [f"{p:.2%}" for p in result['topic_distribution']]
         })
         st.table(prob_df)
 
 def analysis_page(n_topics):
     """Halaman analisis dataset"""
-    st.header("📈 Dataset Analysis")
+    st.header("Analisis Dataset")
     
     df = load_data()
     
     if df is None:
-        st.warning("⚠️ Processed data tidak tersedia. Silakan train model terlebih dahulu di Colab dan upload `processed_data.csv`.")
-        st.info("💡 File yang dibutuhkan: `processed_data.csv` dengan kolom minimal: `cleaned_text`, `dominant_topic`")
+        st.warning("Processed data tidak tersedia. Silakan latih model terlebih dahulu di Colab dan unggah `processed_data.csv`.")
+        st.info("File yang dibutuhkan: `processed_data.csv` dengan kolom minimal: `cleaned_text`, `dominant_topic`")
         return
     
     # Check required columns
@@ -357,20 +372,20 @@ def analysis_page(n_topics):
         return
     
     # Dataset overview
-    st.subheader("📊 Dataset Overview")
+    st.subheader("Ringkasan Dataset")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Total Documents", len(df))
+        st.metric("Total Dokumen", len(df))
     with col2:
-        st.metric("Total Topics", n_topics)
+        st.metric("Total Topik", n_topics)
     with col3:
         avg_words = df['cleaned_text'].str.split().str.len().mean()
-        st.metric("Avg Words/Doc", f"{avg_words:.0f}")
+        st.metric("Rata-rata Kata/Dok", f"{avg_words:.0f}")
     
     # Topic distribution
     if 'dominant_topic' in df.columns:
-        st.subheader("📍 Document Distribution Across Topics")
+        st.subheader("Distribusi Dokumen per Topik")
         
         topic_counts = df['dominant_topic'].value_counts().sort_index()
         
@@ -379,11 +394,11 @@ def analysis_page(n_topics):
         bars = ax.bar(range(n_topics), 
                       [topic_counts.get(i, 0) for i in range(n_topics)], 
                       color=colors)
-        ax.set_xlabel('Topic', fontsize=12)
-        ax.set_ylabel('Number of Documents', fontsize=12)
-        ax.set_title('Distribution of Documents Across Topics', fontsize=14, fontweight='bold')
+        ax.set_xlabel('Topik', fontsize=12)
+        ax.set_ylabel('Jumlah Dokumen', fontsize=12)
+        ax.set_title('Distribusi Dokumen per Topik', fontsize=14, fontweight='bold')
         ax.set_xticks(range(n_topics))
-        ax.set_xticklabels([f'Topic {i+1}' for i in range(n_topics)])
+        ax.set_xticklabels([f'Topik {i+1}' for i in range(n_topics)])
         
         # Add value labels
         for bar in bars:
@@ -396,8 +411,8 @@ def analysis_page(n_topics):
         st.pyplot(fig)
     
     # Sample documents
-    st.subheader("📄 Sample Documents")
-    n_samples = st.slider("Number of samples to display:", 5, 20, 10)
+    st.subheader("Contoh Dokumen")
+    n_samples = st.slider("Jumlah sampel yang ditampilkan:", 5, 20, 10)
     
     # Show available columns
     display_cols = [col for col in ['text', 'cleaned_text'] if col in df.columns]
@@ -408,93 +423,93 @@ def analysis_page(n_topics):
         st.warning("Kolom 'text' atau 'cleaned_text' tidak tersedia dalam dataset.")
     
     # Download processed data
-    st.subheader("💾 Download Data")
+    st.subheader("Unduh Data")
     csv = df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="📥 Download Processed Data (CSV)",
+        label="Unduh Data yang Diproses (CSV)",
         data=csv,
-        file_name="topic_modeling_results.csv",
+        file_name="hasil_pemodelan_topik.csv",
         mime="text/csv"
     )
 
 def about_page():
-    """Halaman about"""
-    st.header("ℹ️ About This Application")
+    """Halaman tentang"""
+    st.header("Tentang Aplikasi Ini")
     
     st.markdown("""
-    ### 🎯 Topic Modeling App
+    ### Aplikasi Pemodelan Topik
     
-    Aplikasi ini menggunakan **Latent Dirichlet Allocation (LDA)** untuk melakukan topic modeling 
+    Aplikasi ini menggunakan **Latent Dirichlet Allocation (LDA)** untuk melakukan pemodelan topik 
     pada dokumen teks.
     
-    #### 🔧 Features:
-    - 📝 **Text Preprocessing**: Cleaning, tokenization, lemmatization
-    - 🤖 **LDA Topic Modeling**: Automatic topic discovery
-    - 🔍 **Topic Prediction**: Predict topics for new documents
-    - 📊 **Visualization**: Interactive charts and word clouds
-    - 📈 **Dataset Analysis**: Analyze document distribution
+    #### Fitur:
+    - 📝 **Pemrosesan Teks**: Pembersihan, tokenisasi, lemmatisasi
+    - 🤖 **Pemodelan Topik LDA**: Penemuan topik secara otomatis
+    - 🔍 **Prediksi Topik**: Prediksi topik untuk dokumen baru
+    - 📊 **Visualisasi**: Grafik interaktif dan word cloud
+    - 📈 **Analisis Dataset**: Analisis distribusi dokumen
     
-    #### 🛠️ Technology Stack:
-    - **Streamlit**: Web framework
-    - **Scikit-learn**: Machine learning
-    - **NLTK**: Natural language processing
-    - **Matplotlib/Seaborn**: Visualization
-    - **Pandas**: Data manipulation
+    #### Teknologi:
+    - **Streamlit**: Kerangka kerja web
+    - **Scikit-learn**: Pembelajaran mesin
+    - **NLTK**: Pemrosesan bahasa alami
+    - **Matplotlib/Seaborn**: Visualisasi
+    - **Pandas**: Manipulasi data
     
-    #### 📚 How It Works:
-    1. **Preprocessing**: Text dibersihkan dan diproses (lowercase, remove stopwords, lemmatization)
-    2. **Vectorization**: Text dikonversi menjadi numerical representation
-    3. **LDA Training**: Model mencari pola kata yang sering muncul bersama
-    4. **Topic Discovery**: Kata-kata dikelompokkan menjadi topik-topik
-    5. **Prediction**: Model memprediksi topik untuk teks baru
+    #### Cara Kerja:
+    1. **Preprocessing**: Teks dibersihkan dan diproses (lowercase, hapus stopwords, lemmatisasi)
+    2. **Vectorization**: Teks dikonversi menjadi representasi numerik
+    3. **Pelatihan LDA**: Model mencari pola kata yang sering muncul bersama
+    4. **Penemuan Topik**: Kata-kata dikelompokkan menjadi topik-topik
+    5. **Prediksi**: Model memprediksi topik untuk teks baru
     
-    #### 📖 Use Cases:
-    - Analisis dokumen research papers
+    #### Contoh Penggunaan:
+    - Analisis paper penelitian
     - Kategorisasi berita
-    - Analisis customer reviews
-    - Content recommendation
-    - Document clustering
+    - Analisis ulasan pelanggan
+    - Rekomendasi konten
+    - Pengelompokan dokumen
     
     ---
     
-    ### 🚀 How to Use:
+    ### Cara Menggunakan:
     
-    1. **Home**: Lihat topik-topik yang telah ditemukan
-    2. **Predict Topic**: Input teks untuk prediksi topik
-    3. **Dataset Analysis**: Analisis distribusi dokumen
-    
-    ---
-    
-    ### 📞 Contact & Support:
-    
-    Untuk pertanyaan atau dukungan, silakan hubungi developer.
+    1. **Beranda**: Lihat topik-topik yang telah ditemukan
+    2. **Prediksi Topik**: Masukkan teks untuk prediksi topik
+    3. **Analisis Dataset**: Analisis distribusi dokumen
     
     ---
     
-    **Version:** 1.0.0  
-    **Last Updated:** December 2025
+    ### Kontak & Dukungan:
+    
+    Untuk pertanyaan atau dukungan, silakan hubungi pengembang.
+    
+    ---
+    
+    **Versi:** 1.0.0  
+    **Terakhir Diperbarui:** Desember 2025
     """)
     
-    # Additional info in expanders
-    with st.expander("🔬 Understanding LDA"):
+    # Informasi tambahan dalam ekspander
+    with st.expander("Memahami LDA"):
         st.markdown("""
-        **Latent Dirichlet Allocation (LDA)** adalah algoritma probabilistic untuk topic modeling.
+        **Latent Dirichlet Allocation (LDA)** adalah algoritma probabilistik untuk pemodelan topik.
         
-        **Key Concepts:**
+        **Konsep Utama:**
         - Setiap dokumen adalah campuran dari beberapa topik
         - Setiap topik adalah distribusi probabilitas atas kata-kata
         - LDA mencari pola kata yang sering muncul bersama
         
-        **Assumptions:**
+        **Asumsi:**
         - Dokumen dengan topik yang sama menggunakan kata-kata yang mirip
-        - Setiap dokumen dapat memiliki multiple topics
+        - Setiap dokumen dapat memiliki banyak topik
         """)
     
-    with st.expander("📊 Model Evaluation Metrics"):
+    with st.expander("Metrik Evaluasi Model"):
         st.markdown("""
-        **Perplexity**: Mengukur seberapa baik model memprediksi sampel baru. Lower is better.
+        **Perplexity**: Mengukur seberapa baik model memprediksi sampel baru (semakin rendah semakin baik).
         
-        **Coherence Score**: Mengukur seberapa semantically coherent topik-topik yang dihasilkan.
+        **Coherence Score**: Mengukur seberapa koheren secara semantik topik-topik yang dihasilkan.
         
         **Topic Diversity**: Mengukur seberapa berbeda topik satu dengan lainnya.
         """)
